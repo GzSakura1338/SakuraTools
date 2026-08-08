@@ -1,0 +1,29 @@
+# Build outputs
+/build/
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.exe
+*.pdb
+*.class
+
+# Runtime and crash artifacts
+*.log
+hs_err_pid*
+replay_pid*
+*.dmp
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local caches
+.cache/
+.zig-cache/
+zig-cache/
