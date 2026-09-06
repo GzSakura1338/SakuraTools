@@ -9,7 +9,8 @@ jmethodID findMethodByDescriptor(jclass klass, const char* desc, bool wantStatic
     if (g_jvmti->GetClassMethods(klass, &count, &mids) != JVMTI_ERROR_NONE)
         return nullptr;
     jmethodID hit = nullptr;
-    for (jint i = 0; i < count && !hit; ++i) {
+    int matches = 0;
+    for (jint i = 0; i < count; ++i) {
         char *n = nullptr, *s = nullptr, *g = nullptr;
         if (g_jvmti->GetMethodName(mids[i], &n, &s, &g) != JVMTI_ERROR_NONE)
             continue;
@@ -18,6 +19,7 @@ jmethodID findMethodByDescriptor(jclass klass, const char* desc, bool wantStatic
         bool isStatic = (mods & 0x0008) != 0;
         if (s && std::strcmp(s, desc) == 0 && isStatic == wantStatic) {
             hit = mids[i];
+            ++matches;
             LogTo("  findMethodByDescriptor(%s, static=%d): '%s'", desc, wantStatic ? 1 : 0, n ? n : "?");
         }
         if (n)
@@ -28,71 +30,10 @@ jmethodID findMethodByDescriptor(jclass klass, const char* desc, bool wantStatic
             g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(g));
     }
     g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(mids));
-    return hit;
+    if (matches > 1) LogTo("bindings: ambiguous method descriptor %s (%d matches)", desc, matches);
+    return matches == 1 ? hit : nullptr;
 }
 
-int findMethodsByDescriptor(jclass klass, const char* desc, bool wantStatic, jmethodID* out, int maxOut) {
-    jint count = 0;
-    jmethodID* mids = nullptr;
-    if (g_jvmti->GetClassMethods(klass, &count, &mids) != JVMTI_ERROR_NONE)
-        return 0;
-    int n = 0;
-    for (jint i = 0; i < count && n < maxOut; ++i) {
-        char *nm = nullptr, *s = nullptr, *g = nullptr;
-        if (g_jvmti->GetMethodName(mids[i], &nm, &s, &g) != JVMTI_ERROR_NONE)
-            continue;
-        jint mods = 0;
-        g_jvmti->GetMethodModifiers(mids[i], &mods);
-        bool isStatic = (mods & 0x0008) != 0;
-        if (s && std::strcmp(s, desc) == 0 && isStatic == wantStatic) {
-            out[n++] = mids[i];
-            LogTo("  findMethodsByDescriptor(%s)[%d]: '%s'", desc, n - 1, nm ? nm : "?");
-        }
-        if (nm)
-            g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(nm));
-        if (s)
-            g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(s));
-        if (g)
-            g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(g));
-    }
-    g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(mids));
-    return n;
-}
-
-jmethodID findMethodByDescriptorExcept(jclass klass, const char* desc, bool wantStatic, const char* const* excl,
-                                       int nExcl) {
-    jint count = 0;
-    jmethodID* mids = nullptr;
-    if (g_jvmti->GetClassMethods(klass, &count, &mids) != JVMTI_ERROR_NONE)
-        return nullptr;
-    jmethodID hit = nullptr;
-    for (jint i = 0; i < count && !hit; ++i) {
-        char *nm = nullptr, *s = nullptr, *g = nullptr;
-        if (g_jvmti->GetMethodName(mids[i], &nm, &s, &g) != JVMTI_ERROR_NONE)
-            continue;
-        jint mods = 0;
-        g_jvmti->GetMethodModifiers(mids[i], &mods);
-        bool isStatic = (mods & 0x0008) != 0;
-        bool excluded = false;
-        for (int e = 0; nm && e < nExcl; ++e)
-            if (std::strcmp(nm, excl[e]) == 0) {
-                excluded = true;
-                break;
-            }
-        if (!excluded && s && std::strcmp(s, desc) == 0 && isStatic == wantStatic) {
-            hit = mids[i];
-            LogTo("  findMethodByDescriptorExcept(%s): '%s'", desc, nm ? nm : "?");
-        }
-        if (nm)
-            g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(nm));
-        if (s)
-            g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(s));
-        if (g)
-            g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(g));
-    }
-    g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(mids));
-    return hit;
-}
 
 jfieldID findFieldByDescriptor(jclass klass, const char* desc, bool wantStatic) {
     jint count = 0;
@@ -100,7 +41,8 @@ jfieldID findFieldByDescriptor(jclass klass, const char* desc, bool wantStatic) 
     if (g_jvmti->GetClassFields(klass, &count, &fids) != JVMTI_ERROR_NONE)
         return nullptr;
     jfieldID hit = nullptr;
-    for (jint i = 0; i < count && !hit; ++i) {
+    int matches = 0;
+    for (jint i = 0; i < count; ++i) {
         char *n = nullptr, *s = nullptr, *g = nullptr;
         if (g_jvmti->GetFieldName(klass, fids[i], &n, &s, &g) != JVMTI_ERROR_NONE)
             continue;
@@ -109,6 +51,7 @@ jfieldID findFieldByDescriptor(jclass klass, const char* desc, bool wantStatic) 
         bool isStatic = (mods & 0x0008) != 0;
         if (s && std::strcmp(s, desc) == 0 && isStatic == wantStatic) {
             hit = fids[i];
+            ++matches;
             LogTo("  findFieldByDescriptor(%s, static=%d): '%s'", desc, wantStatic ? 1 : 0, n ? n : "?");
         }
         if (n)
@@ -119,7 +62,8 @@ jfieldID findFieldByDescriptor(jclass klass, const char* desc, bool wantStatic) 
             g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(g));
     }
     g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(fids));
-    return hit;
+    if (matches > 1) LogTo("bindings: ambiguous field descriptor %s (%d matches)", desc, matches);
+    return matches == 1 ? hit : nullptr;
 }
 
 jclass findLoadedBySig(JNIEnv* env, const char* sig) {

@@ -288,20 +288,3 @@ bool CaptureWorldSnapshot(JNIEnv* env, jobject minecraft, jobject connection,
     LogAndClearException(env, "native snapshot dispatch");
     return false;
 }
-
-bool WriteSnapshotPacket(JNIEnv* env, jobject channel, jobject packet) {
-    try {
-        SnapshotLocalFrame frame(env);
-        SnapshotJni j(env, snapshotLoader);
-        jobject future = j.object(channel, "io.netty.channel.Channel", "write", "write", "(Ljava/lang/Object;)Lio/netty/channel/ChannelFuture;", packet);
-        jclass listener = j.type("io.netty.channel.ChannelFutureListener");
-        auto field = env->GetStaticFieldID(listener, "CLOSE_ON_FAILURE", "Lio/netty/channel/ChannelFutureListener;");
-        j.check();
-        jobject close = env->GetStaticObjectField(listener, field);
-        j.object(future, "io.netty.channel.ChannelFuture", "addListener", "addListener",
-            "(Lio/netty/util/concurrent/GenericFutureListener;)Lio/netty/channel/ChannelFuture;", close);
-        if (j.boolean(future, "io.netty.util.concurrent.Future", "isDone", "isDone", "()Z") &&
-            !j.boolean(future, "io.netty.util.concurrent.Future", "isSuccess", "isSuccess", "()Z")) return false;
-        return true;
-    } catch (const std::exception& e) { LogTo("snapshot write failed: %s", e.what()); LogAndClearException(env, "snapshot write"); return false; }
-}

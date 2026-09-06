@@ -1,5 +1,6 @@
 # Build outputs
 /build/
+/skid/
 *.o
 *.obj
 *.a
@@ -27,3 +28,5 @@ Thumbs.db
 .cache/
 .zig-cache/
 zig-cache/
+
+

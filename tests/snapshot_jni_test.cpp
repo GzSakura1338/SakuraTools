@@ -60,6 +60,36 @@ int main(int argc, char** argv) {
             return decoded;
         };
         const char* position = "net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket";
+        const char* teamPacket = "net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket";
+        jobject scoreboard = j.make("net.minecraft.world.scores.Scoreboard", "()V");
+        jstring teamName = env->NewStringUTF("proxy-test");
+        jobject team = j.make("net.minecraft.world.scores.PlayerTeam",
+            "(Lnet/minecraft/world/scores/Scoreboard;Ljava/lang/String;)V", scoreboard, teamName);
+        jobject parameters = j.make("net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket$Parameters",
+            "(Lnet/minecraft/world/scores/PlayerTeam;)V", team);
+        jobject present = j.stat("java.util.Optional", "of", "of", "(Ljava/lang/Object;)Ljava/util/Optional;", parameters);
+        jobject absent = j.stat("java.util.Optional", "empty", "empty", "()Ljava/util/Optional;");
+        jobject members = j.make("java.util.ArrayList", "()V");
+        for (const char* member : {"A", "B", "other"}) {
+            jstring value = env->NewStringUTF(member);
+            j.boolean(members, "java.util.ArrayList", "add", "add", "(Ljava/lang/Object;)Z", value);
+            env->DeleteLocalRef(value);
+        }
+        auto playersField = j.field(teamPacket, "players", "f_133294_", "Ljava/util/Collection;");
+        auto methodField = j.field(teamPacket, "method", "f_133295_", "I");
+        for (jint operation = 0; operation <= 4; ++operation) {
+            jobject original = j.make(teamPacket,
+                "(Ljava/lang/String;ILjava/util/Optional;Ljava/util/Collection;)V", teamName, operation,
+                operation == 0 || operation == 2 ? present : absent, members);
+            jobject copy = roundTrip(teamPacket, original);
+            require(env->GetIntField(copy, methodField) == operation, "team operation changed in codec");
+            jobject decodedPlayers = env->GetObjectField(copy, playersField);
+            require(j.integer(decodedPlayers, "java.util.Collection", "size", "size", "()I") ==
+                (operation == 0 || operation == 3 || operation == 4 ? 3 : 0), "team members changed in codec");
+            env->DeleteLocalRef(decodedPlayers);
+            env->DeleteLocalRef(copy);
+            env->DeleteLocalRef(original);
+        }
         jobject empty = j.stat("java.util.Collections", "emptySet", "emptySet", "()Ljava/util/Set;");
         jobject packet = j.make(position, "(DDDFFLjava/util/Set;I)V", 123.25, 70.5, -456.75,
             (jfloat)90, (jfloat)-20, empty, (jint)LoginHandoff::teleportId);
@@ -98,7 +128,7 @@ int main(int argc, char** argv) {
             "(Lnet/minecraft/world/level/chunk/LevelChunk;Lnet/minecraft/world/level/lighting/LevelLightEngine;Ljava/util/BitSet;Ljava/util/BitSet;)V");
         j.method("io.netty.channel.ChannelFuture", "addListener", "addListener",
             "(Lio/netty/util/concurrent/GenericFutureListener;)Lio/netty/channel/ChannelFuture;");
-        std::puts("PASS: native JNI mappings and five Minecraft packet codec round trips");
+        std::puts("PASS: native JNI mappings, five team operations and five snapshot packet codecs");
     } catch (const std::exception& error) {
         std::fprintf(stderr, "FAIL: %s\n", error.what());
         if (env->ExceptionCheck()) { env->ExceptionDescribe(); env->ExceptionClear(); }

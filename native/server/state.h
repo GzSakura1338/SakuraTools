@@ -2,6 +2,7 @@
 
 #include "bindings.h"
 #include "login_handoff.h"
+#include "team_state.h"
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -47,6 +48,7 @@ struct ServerState {
     std::vector<jobject> pendingPackets; // Owned global refs, released on drain/stop.
     PlayerIdentity aPlayer;
     PlayerIdentity bPlayer;
+    TeamState teams;
 
     std::mutex clientMutex;
     jobject clientChannel = nullptr; // Owned global ref.

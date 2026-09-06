@@ -13,39 +13,19 @@ bool beginSnapshot(JNIEnv* env) {
     return JNI_TRUE;
 }
 
-void writeToB(JNIEnv* env, jobject packet) {
+bool writeToB(JNIEnv* env, jobject packet) {
     jobject ch;
     {
         std::lock_guard<std::mutex> l(server.clientMutex);
         ch = server.clientChannel ? env->NewLocalRef(server.clientChannel) : nullptr;
     }
     if (!ch)
-        return;
-    env->CallObjectMethod(ch, server.refs.channelWriteAndFlushMid, packet);
-    if (env->ExceptionCheck())
-        LogAndClearException(env, "writeAndFlush");
+        return false;
+    bool ok = writePacket(env, ch, packet);
     env->DeleteLocalRef(ch);
+    return ok;
 }
 
-bool uuidToBytes(JNIEnv* env, jobject uuid, unsigned char out[16]) {
-    if (!uuid || !server.refs.uuidGetMsbMid || !server.refs.uuidGetLsbMid)
-        return false;
-    jlong msb = env->CallLongMethod(uuid, server.refs.uuidGetMsbMid);
-    if (env->ExceptionCheck()) {
-        env->ExceptionClear();
-        return false;
-    }
-    jlong lsb = env->CallLongMethod(uuid, server.refs.uuidGetLsbMid);
-    if (env->ExceptionCheck()) {
-        env->ExceptionClear();
-        return false;
-    }
-    for (int i = 0; i < 8; ++i)
-        out[i] = (unsigned char)((msb >> ((7 - i) * 8)) & 0xFF);
-    for (int i = 0; i < 8; ++i)
-        out[8 + i] = (unsigned char)((lsb >> ((7 - i) * 8)) & 0xFF);
-    return true;
-}
 
 void ensureARealUuid(JNIEnv* env) {
     if (server.aPlayer.ready && server.aPlayer.name)
@@ -204,7 +184,7 @@ bool reconstructAndSendLoginToB(JNIEnv* env, jobject ch) {
     const size_t count = packets.size();
     for (jobject packet : packets) {
         if (ok) {
-            ok = WriteSnapshotPacket(env, ch, packet);
+            ok = sendGamePacket(env, ch, packet, false);
         }
         env->DeleteGlobalRef(packet);
     }
@@ -221,9 +201,8 @@ bool reconstructAndSendLoginToB(JNIEnv* env, jobject ch) {
 }
 
 void completeLogin(JNIEnv* env, jobject hello) {
-
-    if (!server.refs.helloPacketNameFid) {
-        LogTo("login: no hello.name field");
+    if (!server.bindingsReady || !validateRequiredBindings()) {
+        LogTo("login: required bindings unavailable");
         return;
     }
     jstring jname = (jstring)env->GetObjectField(hello, server.refs.helloPacketNameFid);
@@ -273,9 +252,31 @@ void completeLogin(JNIEnv* env, jobject hello) {
         return;
     }
 
-    writeToB(env, lfp);
+    bool loginSent = writeToB(env, lfp);
     env->DeleteLocalRef(lfp);
+    if (!loginSent) {
+        env->DeleteLocalRef(uuid);
+        env->DeleteLocalRef(jname);
+        return;
+    }
     LogTo("login: sent ClientboundGameProfilePacket to B");
+
+    {
+        std::lock_guard<std::recursive_mutex> dispatch(server.dispatchMutex);
+        if (!initializeBIdentity(env, uuid, jname)) {
+            jobject failedChannel;
+            {
+                std::lock_guard<std::mutex> client(server.clientMutex);
+                failedChannel = server.clientChannel ? env->NewLocalRef(server.clientChannel) : nullptr;
+            }
+            closeBChannel(env, failedChannel);
+            if (failedChannel) env->DeleteLocalRef(failedChannel);
+            env->DeleteLocalRef(uuid);
+            env->DeleteLocalRef(jname);
+            return;
+        }
+        ensureARealUuid(env);
+    }
 
     jobject ch;
     {
@@ -303,21 +304,6 @@ void completeLogin(JNIEnv* env, jobject hello) {
     }
 
     sendSelfInfoToB(env, uuid, jname);
-
-    unsigned char bBytes[16];
-    if (uuidToBytes(env, uuid, bBytes)) {
-        std::memcpy(server.bPlayer.uuidBytes, bBytes, 16);
-        server.bPlayer.ready = true;
-    }
-
-    if (server.bPlayer.uuid)
-        env->DeleteGlobalRef(server.bPlayer.uuid);
-    server.bPlayer.uuid = env->NewGlobalRef(uuid);
-
-    if (server.bPlayer.name)
-        env->DeleteGlobalRef(server.bPlayer.name);
-    server.bPlayer.name = (jstring)env->NewGlobalRef(jname);
-    ensureARealUuid(env);
 
     env->DeleteLocalRef(uuid);
     env->DeleteLocalRef(jname);

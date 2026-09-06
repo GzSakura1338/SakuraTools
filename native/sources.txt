@@ -14,5 +14,11 @@ native/server/transport.cpp
 native/server/lifecycle.cpp
 native/server/login.cpp
 native/server/forwarding.cpp
+native/server/teams.cpp
+native/server/packet_bindings.cpp
+native/server/binding_validation.cpp
+native/server/packet_io.cpp
+native/server/player_info.cpp
+native/server/identity.cpp
 native/world_snapshot.cpp
 native/status_response.cpp

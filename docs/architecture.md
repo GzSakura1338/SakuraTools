@@ -10,8 +10,15 @@
 | `native/server/lifecycle.cpp` | 监听生命周期、A 连接获取、主线程等待门、登录超时 |
 | `native/server/transport.cpp` | Netty 通道初始化、协议切换、native 回调和局域网公告 |
 | `native/server/login.cpp` | B 登录、世界快照交接、玩家身份初始化 |
-| `native/server/forwarding.cpp` | B 收包分发、实时转发、Bundle 展开、TAB/队伍映射 |
+| `native/server/identity.cpp` | 原子替换 B 身份，登录前清空旧队伍归属 |
+| `native/server/forwarding.cpp` | B 收包分发、实时转发、Bundle 展开、TAB 映射 |
+| `native/server/teams.cpp` | 初始化和实时队伍包共用的 JNI 转换，保留队伍参数，不修改 A 的原包 |
+| `native/server/packet_io.cpp` | 登录、快照、实时与状态响应共用的发送和失败关闭逻辑 |
+| `native/server/player_info.cpp` | 玩家信息转换、字段能力检查、临时缓冲区释放 |
+| `native/team_state.h` | 记录发往 B 的队伍归属，映射 A/B 成员名，过滤重复或过期的退队操作；由 dispatchMutex 保护，每次登录重置 |
 | `native/server/bindings.cpp` | 按协议、通道、玩家、缓冲区等分组解析 JNI 映射 |
+| `native/server/packet_bindings.cpp` | 数据包及缓冲区绑定，优先使用明确的 Mojang/SRG 名称 |
+| `native/server/binding_validation.cpp` | 按功能检查必需绑定，缺失时阻止启动并记录具体名称 |
 | `native/server/bindings.h` | DLL 生命周期内保留的类引用和方法、字段 ID |
 | `native/server/state.h` | 运行状态、连接、锁、等待条件、玩家身份 |
 | `native/server/internal.h` | 仅供服务器内部文件调用的接口 |
@@ -73,6 +80,10 @@ B 的操作   -> B 收包分发 -> 登录确认/控制权检查 -> A 的远端�
 
 新增 Minecraft 映射时优先写明确的名称、SRG 名称和完整描述符。只有名字未知的兼容路径才使用按描述符枚举的方法；多个相同描述符的方法不能靠返回顺序区分含义。
 
+描述符回退发现多个候选时返回失败。玩家信息的可选字段只有在完整读写能力可用时才进入输出包；核心登录、队伍和发送绑定缺失时不启动监听。
+
+业务发送统一调用 `writePacket`，游戏包使用 `sendGamePacket` 先处理队伍。成功返回表示已提交，不表示 B 已处理：立即失败时回滚队伍记录并关闭 B，延迟失败由 Netty `CLOSE_ON_FAILURE` 关闭 B。新会话在发送快照前通过 `initializeBIdentity` 同时更新名称、UUID 并重置队伍。
+
 ## 改动落点
 
 | 改动 | 首先修改 | 验证 |
@@ -99,7 +110,9 @@ B 的操作   -> B 收包分发 -> 登录确认/控制权检查 -> A 的远端�
 ./scripts/test_snapshot_native.ps1 -JavaHome 'D:/Program Files/Java/jdk-21.0.12'
 ```
 
-如果使用自定义构建目录，给原生 JNI 脚本传入 `-TestExe <构建目录>/tests/snapshot_jni_test.exe`。这项测试使用原版 SRG 类，不启动客户端，也不验证 Forge 的全部启动变换。
+原生 JNI 脚本默认运行快照编解码和生产服务器路径两组测试。自定义构建目录时，可传入 `-TestExe @('./build/verified/tests/snapshot_jni_test.exe', './build/verified/tests/server_jni_test.exe')`。
+
+`server_jni_test` 直接链接生产绑定、身份、队伍、玩家信息和发送模块，使用真实 Minecraft SRG 类与 Netty EmbeddedChannel 检查冷启动绑定、缺失绑定诊断、重连身份、快照到实时队伍更新、失败回滚、字段降级和异步发送失败。测试不启动游戏渲染线程，不替代真实客户端登录或 Forge 启动变换验证。
 
 没有 JDK 的环境可以通过 `-WithoutJvmTests` 禁用已有 Java 测试夹具；生产逻辑始终为 C/C++，不会将这些测试夹具放进 DLL。
 
