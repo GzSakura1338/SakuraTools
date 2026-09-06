@@ -8,6 +8,7 @@
 
 extern "C" {
 #include "../injector/LoadLibraryR.h"
+#include "../injector/RuntimeControl.h"
 }
 
 static const wchar_t kBujiIsland[] = { 0x5e03, 0x5409, 0x5c9b, 0 };
@@ -88,6 +89,11 @@ static void enable_debug_privilege(void) {
 static volatile DWORD sLastInjectedPid = 0;
 
 static BOOL do_inject(DWORD pid, const char* dllPath, char* errOut, int errCap) {
+    int resumed = TryResumeProxy(pid);
+    if (resumed != 0) {
+        if (resumed < 0) _snprintf_s(errOut, errCap, _TRUNCATE, "Could not signal resident proxy");
+        return resumed > 0;
+    }
     HANDLE hFile = CreateFileA(dllPath, GENERIC_READ, FILE_SHARE_READ, NULL,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {

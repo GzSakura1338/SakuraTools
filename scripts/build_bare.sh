@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIG="${ZIG:-/Users/mac/client/内置进服/zig-aarch64-macos-0.16.0/zig}"
-ZL="/Users/mac/client/内置进服/zig-aarch64-macos-0.16.0/lib"
+ZIG="${ZIG:-$ROOT/../zig-aarch64-macos-0.16.0/zig}"
 OUT="$ROOT/build"
-mkdir -p "$OUT"
+BIN_DIR="$ROOT/proxy"
+mkdir -p "$OUT" "$BIN_DIR"
 
 TARGET="x86_64-windows-gnu"
 
@@ -13,34 +13,31 @@ CFLAGS=(
     -target "$TARGET" -O2
     -DWIN_X64 -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN
     -I "$ROOT/native/include"
+    -I "$ROOT/native"
 )
 
 CXX_ONLY=(
     -std=c++17 -fno-rtti
 )
 
-CS=(native/ReflectiveLoader.c)
-CXXS=(
-    native/loader.cpp native/env.cpp native/random_name.cpp
-    native/classfile.cpp native/class_edit.cpp
-    native/trampolines.cpp native/relay_handler.cpp native/connection_hook.cpp
-)
+source "$ROOT/scripts/native_sources.sh"
+load_native_sources "$ROOT"
 
 OBJS=()
-for s in "${CS[@]}"; do
+for s in "${C_SOURCES[@]}"; do
     o="$OUT/$(basename $s).o"
     echo "  CC  $s"
-    "$ZIG" cc "${CFLAGS[@]}" -c "$ROOT/$s" -o "$o"
+    "$ZIG" cc "${CFLAGS[@]}" -c "$s" -o "$o"
     OBJS+=("$o")
 done
-for s in "${CXXS[@]}"; do
+for s in "${CXX_SOURCES[@]}"; do
     o="$OUT/$(basename $s).o"
     echo "  CXX $s"
-    "$ZIG" c++ "${CFLAGS[@]}" "${CXX_ONLY[@]}" -c "$ROOT/$s" -o "$o"
+    "$ZIG" c++ "${CFLAGS[@]}" "${CXX_ONLY[@]}" -c "$s" -o "$o"
     OBJS+=("$o")
 done
 
-OUT_DLL="$OUT/MinecraftProxy_bare.dll"
+OUT_DLL="$BIN_DIR/Meadow_bare.dll"
 echo "  LD  $OUT_DLL"
 "$ZIG" c++ -target "$TARGET" -shared \
     -Wl,-e,DllMain \

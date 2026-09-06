@@ -4,6 +4,7 @@
 #include "random_name.h"
 #include "relay_handler.h"
 #include "b_server.h"
+#include "runtime_gate.h"
 
 #include <cstdio>
 #include <string>
@@ -41,6 +42,8 @@ void JNICALL Native_onChannelActive(JNIEnv* env,
                                     jclass,
                                     jobject connection,
                                     jobject ctx) {
+    RuntimeCallback callback;
+    if (!callback) return;
     LogTo("Native_onChannelActive fired: conn=%p ctx=%p",
           (void*)connection, (void*)ctx);
 

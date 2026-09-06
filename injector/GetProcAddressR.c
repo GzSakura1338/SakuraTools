@@ -32,10 +32,10 @@ FARPROC WINAPI GetProcAddressR( HANDLE hModule, LPCSTR lpProcName )
 
 		uiNameOrdinals = ( uiLibraryAddress + pExportDirectory->AddressOfNameOrdinals );
 
-		if( ((DWORD)lpProcName & 0xFFFF0000 ) == 0x00000000 )
+		if( IS_INTRESOURCE(lpProcName) )
 		{
 
-			uiAddressArray += ( ( IMAGE_ORDINAL( (DWORD)lpProcName ) - pExportDirectory->Base ) * sizeof(DWORD) );
+			uiAddressArray += ( ( IMAGE_ORDINAL( (ULONG_PTR)lpProcName ) - pExportDirectory->Base ) * sizeof(DWORD) );
 
 			fpResult = (FARPROC)( uiLibraryAddress + DEREF_32(uiAddressArray) );
 		}

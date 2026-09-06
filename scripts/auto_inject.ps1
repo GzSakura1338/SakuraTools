@@ -1,6 +1,6 @@
 param(
-    [string]$Dll = (Join-Path $PSScriptRoot 'MinecraftProxy_msvc.dll'),
-    [string]$Injector = (Join-Path $PSScriptRoot 'reflective_injector.exe'),
+    [string]$Dll = (Join-Path $PSScriptRoot '../proxy/Meadow.dll'),
+    [string]$Injector = (Join-Path $PSScriptRoot '../proxy/Canvas.exe'),
     [int]$WaitSeconds = 8
 )
 

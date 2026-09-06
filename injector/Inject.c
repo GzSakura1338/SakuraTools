@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "LoadLibraryR.h"
+#include "RuntimeControl.h"
 
 #pragma comment(lib,"Advapi32.lib")
 
@@ -12,6 +13,13 @@
 
 BOOL DoInject(DWORD dwProcessId, const char* cpDllFile, char* outMessage, int maxLen)
 {
+    int resumed = TryResumeProxy(dwProcessId);
+    if (resumed != 0) {
+        snprintf(outMessage, maxLen, resumed > 0
+            ? "[+] Reactivation requested for resident proxy in process %lu. Disk DLL was NOT loaded; restart A to apply a new build."
+            : "[-] Could not signal resident proxy in process %lu.", dwProcessId);
+        return resumed > 0;
+    }
 	HANDLE hFile          = NULL;
 	HANDLE hModule        = NULL;
 	HANDLE hProcess       = NULL;
@@ -61,6 +69,7 @@ BOOL DoInject(DWORD dwProcessId, const char* cpDllFile, char* outMessage, int ma
 		snprintf(outMessage, maxLen, "[+] Injected the DLL into process %lu successfully.", dwProcessId);
 
 		WaitForSingleObject( hModule, -1 );
+		CloseHandle(hModule);
 
 	} while( 0 );
 

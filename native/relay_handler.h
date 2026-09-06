@@ -36,6 +36,7 @@ bool InstallRelayHandler(JNIEnv* env);
 
 void RelayHandler_AttachToPipeline(JNIEnv* env, jobject ctx);
 
-void RelayHandler_AttachToPipelineObject(JNIEnv* env, jobject pipeline);
+bool RelayHandler_AttachToPipelineObject(JNIEnv* env, jobject pipeline);
 
 void RelayFilter_MarkBypass(JNIEnv* env, jobject packet);
+bool RelayHandler_DetachAll(JNIEnv* env);

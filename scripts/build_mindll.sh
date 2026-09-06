@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ZIG="${ZIG:-$ROOT/../zig-aarch64-macos-0.16.0/zig}"
-OUT="$ROOT/build"
+OUT="$ROOT/proxy"
 
 mkdir -p "$OUT"
 
@@ -13,16 +13,16 @@ mkdir -p "$OUT"
     -shared \
     "$ROOT/mindll/mindll.c" \
     -lkernel32 -luser32 \
-    -o "$OUT/mindll.dll"
+    -o "$OUT/Pebble.dll"
 
 echo "--- built ---"
-ls -lh "$OUT/mindll.dll"
-file "$OUT/mindll.dll"
+ls -lh "$OUT/Pebble.dll"
+file "$OUT/Pebble.dll"
 echo ""
 echo "--- imports / TLS ---"
 python3 -c "
 import pefile
-pe = pefile.PE('$OUT/mindll.dll')
+pe = pefile.PE('$OUT/Pebble.dll')
 for e in pe.DIRECTORY_ENTRY_IMPORT:
     print('  IMP', e.dll.decode())
 print('  TLS:', 'yes' if hasattr(pe, 'DIRECTORY_ENTRY_TLS') else 'no')

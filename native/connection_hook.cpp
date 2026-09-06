@@ -3,6 +3,7 @@
 #include "class_edit.h"
 #include "classfile.h"
 #include "trampolines.h"
+#include "runtime_gate.h"
 
 #include <cstring>
 #include <stdexcept>
@@ -27,7 +28,8 @@ void JNICALL ClassFileLoadHookCallback(
         jint*     new_class_data_len,
         unsigned char** new_class_data) {
 
-    if (!name) return;
+    RuntimeCallback callback;
+    if (!callback || !name) return;
 
     if (std::strcmp(name, kConnectionInternal) != 0) return;
     LogTo("ClassFileLoadHook fired for %s (len=%d)", name, (int)class_data_len);
@@ -102,22 +104,24 @@ bool EnableCapabilitiesAndCallbacks(jvmtiEnv* jvmti) {
     return true;
 }
 
-void RetransformIfLoaded(JNIEnv* env, jvmtiEnv* jvmti) {
+bool RetransformIfLoaded(JNIEnv* env, jvmtiEnv* jvmti) {
 
     jint count = 0;
     jclass* classes = nullptr;
-    if (jvmti->GetLoadedClasses(&count, &classes) != JVMTI_ERROR_NONE) return;
+    if (jvmti->GetLoadedClasses(&count, &classes) != JVMTI_ERROR_NONE) return false;
+    bool ok = true;
 
     int found = 0, retransformed = 0;
     for (jint i = 0; i < count; ++i) {
         char* sig = nullptr;
-        if (jvmti->GetClassSignature(classes[i], &sig, nullptr) != JVMTI_ERROR_NONE) continue;
+        if (jvmti->GetClassSignature(classes[i], &sig, nullptr) != JVMTI_ERROR_NONE) { ok = false; continue; }
         if (sig && std::strcmp(sig, "Lnet/minecraft/network/Connection;") == 0) {
             ++found;
             jvmtiError e = jvmti->RetransformClasses(1, &classes[i]);
             if (e == JVMTI_ERROR_NONE) {
                 ++retransformed;
             } else {
+                ok = false;
                 LogTo("Connection hook: RetransformClasses failed err=%d", (int)e);
             }
         }
@@ -128,6 +132,7 @@ void RetransformIfLoaded(JNIEnv* env, jvmtiEnv* jvmti) {
 
     for (jint i = 0; i < count; ++i) env->DeleteLocalRef(classes[i]);
     jvmti->Deallocate(reinterpret_cast<unsigned char*>(classes));
+    return ok;
 }
 
 }
@@ -139,6 +144,15 @@ bool InstallConnectionHook(JNIEnv* env) {
         return false;
     }
     if (!EnableCapabilitiesAndCallbacks(g_jvmti)) return false;
-    RetransformIfLoaded(env, g_jvmti);
+    return RetransformIfLoaded(env, g_jvmti);
+}
+
+bool UninstallConnectionHook(JNIEnv* env) {
+    if (!g_jvmti || !env) return false;
+    // Retransformation without our callback restores the JVM's original input.
+    if (g_jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, nullptr)
+        != JVMTI_ERROR_NONE) return false;
+    if (!RetransformIfLoaded(env, g_jvmti)) return false;
+    LogTo("STOP: Connection hook disabled and retransformed");
     return true;
 }

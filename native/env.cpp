@@ -18,14 +18,8 @@ void Dbg(const char* fmt, ...) {
 }
 
 void LogTo(const char* fmt, ...) {
-
-    static CRITICAL_SECTION cs;
-    static bool cs_init = false;
-    if (!cs_init) {
-        InitializeCriticalSection(&cs);
-        cs_init = true;
-    }
-    EnterCriticalSection(&cs);
+    static SRWLOCK lock = SRWLOCK_INIT;
+    AcquireSRWLockExclusive(&lock);
 
     static HANDLE h = INVALID_HANDLE_VALUE;
     static bool   tried = false;
@@ -80,7 +74,7 @@ void LogTo(const char* fmt, ...) {
         DWORD wrote = 0;
         WriteFile(h, msg, (DWORD)len, &wrote, NULL);
     }
-    LeaveCriticalSection(&cs);
+    ReleaseSRWLockExclusive(&lock);
 }
 
 void LogAndClearException(JNIEnv* env, const char* where) {

@@ -3,10 +3,12 @@
 $ErrorActionPreference = 'Stop'
 
 $Here      = $PSScriptRoot
-$Dll       = Join-Path $Here 'MinecraftProxy_msvc.dll'
-$Injector  = Join-Path $Here 'reflective_injector.exe'
+$Dll       = Join-Path $Here 'Meadow.dll'
+$Injector  = Join-Path $Here 'Canvas.exe'
 $InjectPs1 = Join-Path $Here 'inject.ps1'
-$LogPath   = Join-Path $env:TEMP 'MinecraftProxy.log'
+$LogPath   = Join-Path $env:APPDATA '.minecraft/proxy.log'
+$FallbackLog = Join-Path $env:TEMP 'MinecraftProxy.log'
+if (-not (Test-Path $LogPath) -and (Test-Path $FallbackLog)) { $LogPath = $FallbackLog }
 $ProxyPort = 25565
 $BujiIsland = [char]0x5e03 + [char]0x5409 + [char]0x5c9b
 
@@ -102,7 +104,7 @@ function Show-Status {
         Write-Kv "DLL" ("MISSING - expected {0}" -f $Dll) Red
     }
     if (Test-Path $Injector) {
-        Write-Kv "Injector" ("reflective_injector.exe (auto-wait for `"{0}`" window)" -f $BujiIsland) Green
+        Write-Kv "Injector" ("Canvas.exe (auto-wait for `"{0}`" window)" -f $BujiIsland) Green
     } else {
         Write-Kv "Injector" 'MISSING - will fall back to inject.ps1' Yellow
     }
@@ -178,7 +180,7 @@ function Do-Inject {
             Write-Host "If MC was already running, try option [2] (inject into specific PID)." -ForegroundColor Yellow
         }
     } else {
-        Write-Host "reflective_injector.exe missing; falling back to PID prompt." -ForegroundColor Yellow
+        Write-Host "Canvas.exe missing; falling back to PID prompt." -ForegroundColor Yellow
         Do-InjectPid
     }
 }

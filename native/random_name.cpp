@@ -14,22 +14,22 @@
 namespace {
 
 constexpr std::array<const char*, 96> kWords = {
-    "Azure",   "Amber",   "Arcane",   "Aurora",   "Blaze",   "Bramble",
-    "Bright",  "Cinder",  "Cipher",   "Cobalt",   "Comet",   "Crimson",
-    "Crystal", "Dawn",    "Deep",     "Divine",   "Dream",   "Ember",
-    "Ethereal","Fable",   "Fallen",   "Feral",    "Flare",   "Flux",
-    "Frost",   "Gale",    "Gilded",   "Glacier",  "Glass",   "Glimmer",
-    "Glow",    "Grace",   "Grim",     "Hallow",   "Haze",    "Heavy",
-    "Hidden",  "Hollow",  "Horizon",  "Iron",     "Ivory",   "Jade",
-    "Karma",   "Keen",    "Lantern",  "Lattice",  "Lich",    "Lucid",
-    "Lunar",   "Marble",  "Mirror",   "Mist",     "Moon",    "Myth",
-    "Nebula",  "Nexus",   "Night",    "Nova",     "Obsidian","Onyx",
-    "Orbit",   "Pale",    "Phantom",  "Phase",    "Prism",   "Pulse",
-    "Quartz",  "Quiet",   "Radiant",  "Raven",    "Reactor", "Relic",
-    "Ridge",   "Rift",    "Rune",     "Saga",     "Sable",   "Scarlet",
-    "Shadow",  "Shard",   "Silent",   "Silver",   "Solstice","Somber",
-    "Solar",   "Sonic",   "Spark",    "Stellar",  "Storm",   "Swift",
-    "Thunder", "Titan",   "Umbral",   "Vector",   "Vestige", "Vortex",
+    "Apricot", "Basket",  "Button",  "Canvas",  "Cedar",   "Cherry",
+    "Clover",  "Cotton",  "Cupboard","Curtain", "Daisy",   "Desk",
+    "Drawer",  "Fabric",  "Fern",    "Folder",  "Garden",  "Gingham",
+    "Handle",  "Hazel",   "Hearth",  "Hem",     "Kettle",  "Label",
+    "Lemon",   "Linen",   "Maple",   "Meadow",  "Mint",    "Mug",
+    "Napkin",  "Notebook","Olive",   "Orchard", "Paper",   "Peach",
+    "Pebble",  "Pencil",  "Petal",   "Pillow",  "Pine",    "Plum",
+    "Pocket",  "Porch",   "Pottery", "Ribbon",  "Saucer",  "Shelf",
+    "Spool",   "Stool",   "Table",   "Teacup",  "Thimble", "Thread",
+    "Thyme",   "Towel",   "Tray",    "Tulip",   "Vase",    "Walnut",
+    "Willow",  "Wool",    "Acorn",   "Album",   "Apron",   "Basin",
+    "Bench",   "Birch",   "Blanket", "Blossom", "Booklet", "Bowl",
+    "Broom",   "Cabinet", "Candle",  "Carpet",  "Chalk",   "Chest",
+    "Coaster", "Comb",    "Cork",    "Cushion", "Doily",   "Envelope",
+    "Felt",    "Flannel", "Hanger",  "Jar",     "Ladle",   "Mat",
+    "Pitcher", "Plate",   "Quilt",   "Ruler",   "Satin",   "Twine",
 };
 
 std::mt19937_64 make_rng() {

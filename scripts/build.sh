@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ZIG="${ZIG:-$ROOT/../zig-aarch64-macos-0.16.0/zig}"
 OUT="$ROOT/build"
+BIN_DIR="$ROOT/proxy"
 NATIVE="$ROOT/native"
 
 if [[ ! -x "$ZIG" ]]; then
@@ -11,7 +12,7 @@ if [[ ! -x "$ZIG" ]]; then
     exit 1
 fi
 
-mkdir -p "$OUT"
+mkdir -p "$OUT" "$BIN_DIR"
 
 TARGET="x86_64-windows-gnu"
 
@@ -26,26 +27,11 @@ CFLAGS=(
     -I "$NATIVE"
 )
 
-C_SOURCES=(
-    "$NATIVE/ReflectiveLoader.c"
-)
-
-CXX_SOURCES=(
-    "$NATIVE/loader.cpp"
-    "$NATIVE/env.cpp"
-    "$NATIVE/random_name.cpp"
-    "$NATIVE/classfile.cpp"
-    "$NATIVE/class_edit.cpp"
-    "$NATIVE/trampolines.cpp"
-    "$NATIVE/relay_handler.cpp"
-    "$NATIVE/connection_hook.cpp"
-    "$NATIVE/world_cache.cpp"
-    "$NATIVE/b_server.cpp"
-)
+source "$ROOT/scripts/native_sources.sh"
+load_native_sources "$ROOT"
 
 OBJS=()
 for src in "${C_SOURCES[@]}"; do
-    [[ -f "$src" ]] || continue
     obj="$OUT/$(basename "$src").o"
     echo "CC  $(basename "$src")"
     "$ZIG" cc "${CFLAGS[@]}" -c "$src" -o "$obj"
@@ -53,14 +39,13 @@ for src in "${C_SOURCES[@]}"; do
 done
 
 for src in "${CXX_SOURCES[@]}"; do
-    [[ -f "$src" ]] || continue
     obj="$OUT/$(basename "$src").o"
     echo "CXX $(basename "$src")"
     "$ZIG" c++ "${CFLAGS[@]}" -std=c++17 -c "$src" -o "$obj"
     OBJS+=("$obj")
 done
 
-OUT_DLL="$OUT/MinecraftProxy.dll"
+OUT_DLL="$BIN_DIR/Meadow.dll"
 echo "LD  $(basename "$OUT_DLL")"
 "$ZIG" c++ -target "$TARGET" -shared \
     -static-libgcc -static-libstdc++ \
@@ -78,13 +63,13 @@ INJECTOR_SOURCES=(
     "$INJECTOR_DIR/LoadLibraryR.c"
     "$INJECTOR_DIR/GetProcAddressR.c"
 )
-INJ_OUT="$OUT/injector.exe"
+INJ_OUT="$BIN_DIR/Canvas.exe"
 echo "CC/LD $(basename "$INJ_OUT")"
 "$ZIG" cc -target "$TARGET" -O2 \
     -DWIN_X64 -DWIN32_LEAN_AND_MEAN -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN \
     -I "$INJECTOR_DIR" \
     "${INJECTOR_SOURCES[@]}" \
-    -ladvapi32 -lkernel32 -luser32 \
+    -ladvapi32 -liphlpapi -lkernel32 -luser32 \
     -o "$INJ_OUT"
 ls -lh "$INJ_OUT"
 echo "OK  $INJ_OUT"
