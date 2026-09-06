@@ -4,16 +4,9 @@
 
 namespace proxy_server {
 
-struct PacketWriterBindings {
-    jmethodID write = nullptr, writeAndFlush = nullptr, close = nullptr;
-    jmethodID addListener = nullptr, isDone = nullptr, isSuccess = nullptr, isOpen = nullptr;
-    jobject closeOnFailure = nullptr;
-};
-
 // Global JNI references and IDs are retained for the resident DLL's lifetime.
 // Session shutdown releases connections and players, but keeps these bindings.
 struct JavaBindings {
-    PacketWriterBindings writer;
     jclass initClass = nullptr;
     jmethodID initCtor = nullptr;
     jclass handlerClass = nullptr;
@@ -78,7 +71,8 @@ struct JavaBindings {
     jclass playerInfoUpdatePacketCls = nullptr;
     jmethodID playerInfoUpdatePacketBufCtor = nullptr;
     jmethodID playerInfoUpdatePacketWriteMid = nullptr;
-    jfieldID piuEntriesField = nullptr;
+    jmethodID piuEntriesMidA = nullptr;
+    jmethodID piuEntriesMidB = nullptr;
     jclass piEntryCls = nullptr;
     jmethodID piEntryProfileIdMid = nullptr;
     jmethodID piEntryGameModeMid = nullptr;
@@ -89,10 +83,8 @@ struct JavaBindings {
     jmethodID listSizeMid = nullptr;
     jmethodID listGetMid = nullptr;
     jmethodID byteBufGetByteMid = nullptr;
-    jmethodID byteBufReleaseMid = nullptr;
     jclass customPayloadPacketCls = nullptr;
     jclass setPlayerTeamPacketCls = nullptr;
-    jclass playLoginPacketCls = nullptr;
     jmethodID setPlayerTeamCtor = nullptr;
     jfieldID setPlayerTeamParametersFid = nullptr;
     jfieldID setPlayerTeamMethodFid = nullptr;

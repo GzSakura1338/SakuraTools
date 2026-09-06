@@ -25,6 +25,183 @@ void routeToA(JNIEnv* env, jobject packet) {
     env->DeleteLocalRef(target);
 }
 
+void mirrorPlayerInfoUpdateToB(JNIEnv* env, jobject ch, jobject packet) {
+    if (!server.refs.playerInfoUpdatePacketCls || !server.refs.playerInfoUpdatePacketBufCtor ||
+        !server.refs.playerInfoUpdatePacketWriteMid || !server.refs.friendlyBufCls || !server.refs.friendlyBufCtor ||
+        !server.refs.unpooledCls || !server.refs.unpooledBufferMid || !server.refs.byteBufGetByteMid ||
+        !server.refs.listSizeMid || !server.refs.listGetMid || !server.refs.piuEntriesMidA ||
+        !server.refs.piEntryProfileIdMid || !server.refs.fbbWriteByteMid || !server.refs.fbbWriteVarIntMid ||
+        !server.refs.fbbWriteUUIDMid || !server.refs.fbbWriteBooleanMid)
+        return;
+    if (!server.aPlayer.ready || !server.bPlayer.ready || !server.bPlayer.uuid)
+        return;
+    if (!env->IsInstanceOf(packet, server.refs.playerInfoUpdatePacketCls))
+        return;
+
+    jobject bb0 = env->CallStaticObjectMethod(server.refs.unpooledCls, server.refs.unpooledBufferMid);
+    if (!bb0 || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+    }
+    jobject sbuf = env->NewObject(server.refs.friendlyBufCls, server.refs.friendlyBufCtor, bb0);
+    env->DeleteLocalRef(bb0);
+    if (!sbuf || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+    }
+    env->CallVoidMethod(packet, server.refs.playerInfoUpdatePacketWriteMid, sbuf);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        env->DeleteLocalRef(sbuf);
+        return;
+    }
+    jint bits = env->CallByteMethod(sbuf, server.refs.byteBufGetByteMid, (jint)0) & 0xFF;
+    env->DeleteLocalRef(sbuf);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+    }
+
+    bool hasGameMode = bits & 0x04;
+    bool hasListed = bits & 0x08;
+    bool hasLatency = bits & 0x10;
+    bool hasDisplay = bits & 0x20;
+    int outBits = (hasGameMode ? 0x04 : 0) | (hasListed ? 0x08 : 0) | (hasLatency ? 0x10 : 0) | (hasDisplay ? 0x20 : 0);
+
+    jobject listA = env->CallObjectMethod(packet, server.refs.piuEntriesMidA);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        listA = nullptr;
+    }
+    jobject listB = server.refs.piuEntriesMidB ? env->CallObjectMethod(packet, server.refs.piuEntriesMidB) : nullptr;
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        listB = nullptr;
+    }
+    jint sizeA = -1, sizeB = -1;
+    if (listA) {
+        sizeA = env->CallIntMethod(listA, server.refs.listSizeMid);
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            sizeA = -1;
+        }
+    }
+    if (listB) {
+        sizeB = env->CallIntMethod(listB, server.refs.listSizeMid);
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            sizeB = -1;
+        }
+    }
+    jobject entries = (sizeB > sizeA) ? listB : listA;
+    jint nEntries = (sizeB > sizeA) ? sizeB : sizeA;
+
+    jobject aEntry = nullptr;
+    for (jint i = 0; i < nEntries && !aEntry; ++i) {
+        jobject e = env->CallObjectMethod(entries, server.refs.listGetMid, i);
+        if (!e || env->ExceptionCheck()) {
+            env->ExceptionClear();
+            if (e)
+                env->DeleteLocalRef(e);
+            continue;
+        }
+        jobject euuid = env->CallObjectMethod(e, server.refs.piEntryProfileIdMid);
+        if (euuid && !env->ExceptionCheck()) {
+            unsigned char eb[16];
+            if (uuidToBytes(env, euuid, eb) && std::memcmp(eb, server.aPlayer.uuidBytes, 16) == 0)
+                aEntry = env->NewLocalRef(e);
+            env->DeleteLocalRef(euuid);
+        } else if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(e);
+    }
+    if (listA)
+        env->DeleteLocalRef(listA);
+    if (listB)
+        env->DeleteLocalRef(listB);
+    if (!aEntry)
+        return;
+
+    if (outBits == 0) {
+        env->DeleteLocalRef(aEntry);
+        return;
+    }
+
+    jobject bb = env->CallStaticObjectMethod(server.refs.unpooledCls, server.refs.unpooledBufferMid);
+    if (!bb || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        env->DeleteLocalRef(aEntry);
+        return;
+    }
+    jobject buf = env->NewObject(server.refs.friendlyBufCls, server.refs.friendlyBufCtor, bb);
+    env->DeleteLocalRef(bb);
+    if (!buf || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        env->DeleteLocalRef(aEntry);
+        return;
+    }
+
+    env->CallObjectMethod(buf, server.refs.fbbWriteByteMid, (jint)outBits);
+    env->CallObjectMethod(buf, server.refs.fbbWriteVarIntMid, (jint)1);
+    env->CallObjectMethod(buf, server.refs.fbbWriteUUIDMid, server.bPlayer.uuid);
+
+    if (hasGameMode && server.refs.piEntryGameModeMid && server.refs.gameTypeGetIdMid) {
+        jobject gm = env->CallObjectMethod(aEntry, server.refs.piEntryGameModeMid);
+        jint id = 0;
+        if (gm && !env->ExceptionCheck())
+            id = env->CallIntMethod(gm, server.refs.gameTypeGetIdMid);
+        if (gm)
+            env->DeleteLocalRef(gm);
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->CallObjectMethod(buf, server.refs.fbbWriteVarIntMid, id);
+    }
+    if (hasListed) {
+        // Mirrored updates must never add B as a second visible TAB entry.
+        env->CallObjectMethod(buf, server.refs.fbbWriteBooleanMid, (jboolean)JNI_FALSE);
+    }
+    if (hasLatency && server.refs.piEntryLatencyMid) {
+        jint lat = env->CallIntMethod(aEntry, server.refs.piEntryLatencyMid);
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            lat = 0;
+        }
+        env->CallObjectMethod(buf, server.refs.fbbWriteVarIntMid, lat);
+    }
+    if (hasDisplay) {
+        jobject dn = server.refs.piEntryDisplayNameMid
+                         ? env->CallObjectMethod(aEntry, server.refs.piEntryDisplayNameMid)
+                         : nullptr;
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            dn = nullptr;
+        }
+
+        if (dn && server.refs.fbbWriteComponentMid) {
+            env->CallObjectMethod(buf, server.refs.fbbWriteBooleanMid, (jboolean)JNI_TRUE);
+            env->CallObjectMethod(buf, server.refs.fbbWriteComponentMid, dn);
+        } else {
+            env->CallObjectMethod(buf, server.refs.fbbWriteBooleanMid, (jboolean)JNI_FALSE);
+        }
+        if (dn)
+            env->DeleteLocalRef(dn);
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+    }
+    env->DeleteLocalRef(aEntry);
+
+    jobject pkt = env->NewObject(server.refs.playerInfoUpdatePacketCls, server.refs.playerInfoUpdatePacketBufCtor, buf);
+    env->DeleteLocalRef(buf);
+    if (!pkt || env->ExceptionCheck()) {
+        LogAndClearException(env, "mirror: single-entry ctor");
+        return;
+    }
+    env->CallObjectMethod(ch, server.refs.channelWriteAndFlushMid, pkt);
+    if (env->ExceptionCheck())
+        LogAndClearException(env, "mirror: writeAndFlush");
+    env->DeleteLocalRef(pkt);
+    LogTo("mirror: single-entry PlayerInfoUpdate to B (bits=0x%02x)", outBits);
+}
 
 void writeClientPacket(JNIEnv* env, jobject ch, jobject packet) {
 
@@ -35,13 +212,23 @@ void writeClientPacket(JNIEnv* env, jobject ch, jobject packet) {
             LogTo("ForwardToB: skipping ClientboundCustomPayloadPacket (mod channel, count=%d)", n);
         return;
     }
-    if (!sendGamePacket(env, ch, packet)) return;
-    jobject mirror = nullptr;
-    if (!buildPlayerInfoMirror(env, packet, mirror)) closeBChannel(env, ch);
-    else if (mirror) {
-        writePacket(env, ch, mirror);
-        env->DeleteLocalRef(mirror);
+    jobject outgoing = nullptr;
+    if (!prepareTeamPacket(env, packet, outgoing)) {
+        LogAndClearException(env, "ForwardToB/teams");
+        env->CallObjectMethod(ch, server.refs.channelCloseMid);
+        LogAndClearException(env, "ForwardToB/close");
+        return;
     }
+    if (!outgoing) return;
+    env->CallObjectMethod(ch, server.refs.channelWriteAndFlushMid, outgoing);
+    env->DeleteLocalRef(outgoing);
+    if (env->ExceptionCheck()) {
+        LogAndClearException(env, "ForwardToB/writeOne");
+        env->CallObjectMethod(ch, server.refs.channelCloseMid);
+        LogAndClearException(env, "ForwardToB/close");
+        return;
+    }
+    mirrorPlayerInfoUpdateToB(env, ch, packet);
 }
 
 bool forwardBundleExpanded(JNIEnv* env, jobject ch, jobject packet) {
@@ -150,7 +337,7 @@ void handleClientPacket(JNIEnv* env, jobject ctx, jobject msg) {
             env->CallObjectMethod(ch, server.refs.channelCloseMid);
             return;
         }
-        writePacket(env, ch, response);
+        env->CallObjectMethod(ch, server.refs.channelWriteAndFlushMid, response);
         if (env->ExceptionCheck())
             LogAndClearException(env, "STATUS/write response");
         else
@@ -165,7 +352,7 @@ void handleClientPacket(JNIEnv* env, jobject ctx, jobject msg) {
         if (server.refs.pongResponsePacketCtor) {
             jobject pong = env->NewObject(server.refs.pongResponsePacketCls, server.refs.pongResponsePacketCtor, t);
             if (pong && !env->ExceptionCheck())
-                writePacket(env, ch, pong);
+                env->CallObjectMethod(ch, server.refs.channelWriteAndFlushMid, pong);
             LogTo("BServer: replied Pong(%lld)", (long long)t);
         }
         return;

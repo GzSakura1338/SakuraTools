@@ -5,16 +5,6 @@
 
 namespace proxy_server {
 
-static jfieldID mappedField(JNIEnv* env, jclass type, const char* named, const char* srg, const char* descriptor) {
-    jfieldID field = env->GetFieldID(type, named, descriptor);
-    if (!field) {
-        env->ExceptionClear();
-        field = env->GetFieldID(type, srg, descriptor);
-    }
-    if (!field) LogAndClearException(env, named);
-    return field;
-}
-
 std::u16string currentServerMotd(JNIEnv* env) {
     std::u16string name, address;
     if (env->PushLocalFrame(8) != JNI_OK) {
@@ -114,13 +104,13 @@ static bool cacheProtocolBindings(JNIEnv* env, jobject mcLoader) {
     if (!connCls)
         return false;
     server.refs.connectionCls = static_cast<jclass>(env->NewGlobalRef(connCls));
-    server.refs.connectionConfigureSerMid = FindMappedMethod(env,
-        connCls, "configureSerialization", "m_264299_", "(Lio/netty/channel/ChannelPipeline;Lnet/minecraft/network/protocol/PacketFlow;)V", true);
+    server.refs.connectionConfigureSerMid = findMethodByDescriptor(
+        connCls, "(Lio/netty/channel/ChannelPipeline;Lnet/minecraft/network/protocol/PacketFlow;)V", true);
     server.refs.connectionSendMid =
-        FindMappedMethod(env, connCls, "send", "m_129512_", "(Lnet/minecraft/network/protocol/Packet;)V");
+        findMethodByDescriptor(connCls, "(Lnet/minecraft/network/protocol/Packet;)V", false);
     server.refs.connectionAttrProtocolFid = findFieldByDescriptor(connCls, "Lio/netty/util/AttributeKey;", true);
 
-    server.refs.connectionChannelFid = mappedField(env, connCls, "channel", "f_129468_", "Lio/netty/channel/Channel;");
+    server.refs.connectionChannelFid = findFieldByDescriptor(connCls, "Lio/netty/channel/Channel;", false);
     env->DeleteLocalRef(connCls);
 
     jclass bundlerCls = loadOrFind(env, mcLoader, "net.minecraft.network.protocol.BundlerInfo",
@@ -259,10 +249,10 @@ static void cachePlayerBindings(JNIEnv* env, jobject mcLoader) {
     jclass mcCls = loadOrFind(env, mcLoader, "net.minecraft.client.Minecraft", "Lnet/minecraft/client/Minecraft;");
     if (mcCls) {
         server.refs.minecraftCls = static_cast<jclass>(env->NewGlobalRef(mcCls));
-        server.refs.mcGetInstanceMid = FindMappedMethod(env, mcCls, "getInstance", "m_91087_", "()Lnet/minecraft/client/Minecraft;", true);
+        server.refs.mcGetInstanceMid = findMethodByDescriptor(mcCls, "()Lnet/minecraft/client/Minecraft;", true);
         server.refs.mcGetProfilePropsMid =
-            FindMappedMethod(env, mcCls, "getProfileProperties", "m_91095_", "()Lcom/mojang/authlib/properties/PropertyMap;");
-        server.refs.mcGetUserMid = FindMappedMethod(env, mcCls, "getUser", "m_91094_", "()Lnet/minecraft/client/User;");
+            findMethodByDescriptor(mcCls, "()Lcom/mojang/authlib/properties/PropertyMap;", false);
+        server.refs.mcGetUserMid = findMethodByDescriptor(mcCls, "()Lnet/minecraft/client/User;", false);
         server.refs.mcGetCurrentServerMid =
             env->GetMethodID(mcCls, "getCurrentServer", "()Lnet/minecraft/client/multiplayer/ServerData;");
         if (!server.refs.mcGetCurrentServerMid) {
@@ -293,14 +283,153 @@ static void cachePlayerBindings(JNIEnv* env, jobject mcLoader) {
     jclass userCls = loadOrFind(env, mcLoader, "net.minecraft.client.User", "Lnet/minecraft/client/User;");
     if (userCls) {
         server.refs.userCls = static_cast<jclass>(env->NewGlobalRef(userCls));
-        server.refs.userGetProfileIdMid = FindMappedMethod(env, userCls, "getProfileId", "m_240411_", "()Ljava/util/UUID;");
+        server.refs.userGetProfileIdMid = findMethodByDescriptor(userCls, "()Ljava/util/UUID;", false);
 
         server.refs.userGetGameProfileMid =
-            FindMappedMethod(env, userCls, "getGameProfile", "m_92548_", "()Lcom/mojang/authlib/GameProfile;");
+            findMethodByDescriptor(userCls, "()Lcom/mojang/authlib/GameProfile;", false);
         env->DeleteLocalRef(userCls);
     }
 }
 
+static void cacheBufferBindings(JNIEnv* env, jobject mcLoader) {
+    jclass fbbCls =
+        loadOrFind(env, mcLoader, "net.minecraft.network.FriendlyByteBuf", "Lnet/minecraft/network/FriendlyByteBuf;");
+    if (fbbCls) {
+        server.refs.friendlyBufCls = static_cast<jclass>(env->NewGlobalRef(fbbCls));
+        server.refs.friendlyBufCtor = env->GetMethodID(fbbCls, "<init>", "(Lio/netty/buffer/ByteBuf;)V");
+
+        server.refs.fbbWriteByteMid = env->GetMethodID(fbbCls, "writeByte", "(I)Lio/netty/buffer/ByteBuf;");
+        server.refs.fbbWriteBooleanMid = env->GetMethodID(fbbCls, "writeBoolean", "(Z)Lio/netty/buffer/ByteBuf;");
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        server.refs.fbbWriteVarIntMid =
+            findMethodByDescriptor(fbbCls, "(I)Lnet/minecraft/network/FriendlyByteBuf;", false);
+        server.refs.fbbWriteUUIDMid =
+            findMethodByDescriptor(fbbCls, "(Ljava/util/UUID;)Lnet/minecraft/network/FriendlyByteBuf;", false);
+        server.refs.fbbWriteUtfMid =
+            findMethodByDescriptor(fbbCls, "(Ljava/lang/String;I)Lnet/minecraft/network/FriendlyByteBuf;", false);
+        server.refs.fbbWriteGpPropsMid =
+            findMethodByDescriptor(fbbCls, "(Lcom/mojang/authlib/properties/PropertyMap;)V", false);
+        env->DeleteLocalRef(fbbCls);
+    }
+    jclass unpCls = loadOrFind(env, mcLoader, "io.netty.buffer.Unpooled", "Lio/netty/buffer/Unpooled;");
+    if (unpCls) {
+        server.refs.unpooledCls = static_cast<jclass>(env->NewGlobalRef(unpCls));
+        server.refs.unpooledBufferMid = env->GetStaticMethodID(unpCls, "buffer", "()Lio/netty/buffer/ByteBuf;");
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(unpCls);
+    }
+}
+
+static void cachePlayerPacketBindings(JNIEnv* env, jobject mcLoader) {
+    jclass piuCls = loadOrFind(env, mcLoader, "net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket",
+                               "Lnet/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket;");
+    if (piuCls) {
+        server.refs.playerInfoUpdatePacketCls = static_cast<jclass>(env->NewGlobalRef(piuCls));
+        server.refs.playerInfoUpdatePacketBufCtor =
+            env->GetMethodID(piuCls, "<init>", "(Lnet/minecraft/network/FriendlyByteBuf;)V");
+
+        static const char* const kPacketWriteExcl[] = {"<init>"};
+        server.refs.playerInfoUpdatePacketWriteMid = findMethodByDescriptorExcept(
+            piuCls, "(Lnet/minecraft/network/FriendlyByteBuf;)V", false, kPacketWriteExcl, 1);
+
+        jmethodID listMids[2] = {nullptr, nullptr};
+        int nList = findMethodsByDescriptor(piuCls, "()Ljava/util/List;", false, listMids, 2);
+        server.refs.piuEntriesMidA = listMids[0];
+        server.refs.piuEntriesMidB = listMids[1];
+        LogTo("  piu: %d ()List accessor(s) cached", nList);
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(piuCls);
+    }
+
+    jclass piEntryCls =
+        loadOrFind(env, mcLoader, "net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket$Entry",
+                   "Lnet/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket$Entry;");
+    if (piEntryCls) {
+        server.refs.piEntryCls = static_cast<jclass>(env->NewGlobalRef(piEntryCls));
+        server.refs.piEntryProfileIdMid = findMethodByDescriptor(piEntryCls, "()Ljava/util/UUID;", false);
+        server.refs.piEntryGameModeMid =
+            findMethodByDescriptor(piEntryCls, "()Lnet/minecraft/world/level/GameType;", false);
+        static const char* const kHashExcl[] = {"hashCode"};
+        server.refs.piEntryLatencyMid = findMethodByDescriptorExcept(piEntryCls, "()I", false, kHashExcl, 1);
+        server.refs.piEntryDisplayNameMid =
+            findMethodByDescriptor(piEntryCls, "()Lnet/minecraft/network/chat/Component;", false);
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(piEntryCls);
+    }
+
+    jclass gameTypeCls =
+        loadOrFind(env, mcLoader, "net.minecraft.world.level.GameType", "Lnet/minecraft/world/level/GameType;");
+    if (gameTypeCls) {
+        static const char* const kIdExcl[] = {"ordinal", "hashCode"};
+        server.refs.gameTypeGetIdMid = findMethodByDescriptorExcept(gameTypeCls, "()I", false, kIdExcl, 2);
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(gameTypeCls);
+    }
+
+    if (server.refs.friendlyBufCls) {
+        server.refs.fbbWriteComponentMid = findMethodByDescriptor(
+            server.refs.friendlyBufCls,
+            "(Lnet/minecraft/network/chat/Component;)Lnet/minecraft/network/FriendlyByteBuf;", false);
+    }
+
+    jclass listCls = env->FindClass("java/util/List");
+    if (listCls) {
+        server.refs.listSizeMid = env->GetMethodID(listCls, "size", "()I");
+        server.refs.listGetMid = env->GetMethodID(listCls, "get", "(I)Ljava/lang/Object;");
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(listCls);
+    }
+
+    {
+        jclass bbCls = loadOrFind(env, mcLoader, "io.netty.buffer.ByteBuf", "Lio/netty/buffer/ByteBuf;");
+        if (bbCls) {
+            server.refs.byteBufGetByteMid = env->GetMethodID(bbCls, "getByte", "(I)B");
+            if (env->ExceptionCheck())
+                env->ExceptionClear();
+            env->DeleteLocalRef(bbCls);
+        }
+    }
+
+    jclass cpp = loadOrFind(env, mcLoader, "net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket",
+                            "Lnet/minecraft/network/protocol/game/ClientboundCustomPayloadPacket;");
+    if (cpp) {
+        server.refs.customPayloadPacketCls = static_cast<jclass>(env->NewGlobalRef(cpp));
+        env->DeleteLocalRef(cpp);
+    }
+
+    jclass sptCls = loadOrFind(env, mcLoader, "net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket",
+                               "Lnet/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket;");
+    if (sptCls) {
+        server.refs.setPlayerTeamPacketCls = static_cast<jclass>(env->NewGlobalRef(sptCls));
+        server.refs.setPlayerTeamCtor = env->GetMethodID(sptCls, "<init>",
+            "(Ljava/lang/String;ILjava/util/Optional;Ljava/util/Collection;)V");
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        server.refs.setPlayerTeamParametersFid = findFieldByDescriptor(sptCls, "Ljava/util/Optional;", false);
+        server.refs.setPlayerTeamMethodFid = findFieldByDescriptor(sptCls, "I", false);
+        server.refs.setPlayerTeamNameFid = findFieldByDescriptor(sptCls, "Ljava/lang/String;", false);
+        server.refs.setPlayerTeamPlayersFid = findFieldByDescriptor(sptCls, "Ljava/util/Collection;", false);
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(sptCls);
+    }
+
+    jclass uuidClsL = env->FindClass("java/util/UUID");
+    if (uuidClsL) {
+        server.refs.uuidGetMsbMid = env->GetMethodID(uuidClsL, "getMostSignificantBits", "()J");
+        server.refs.uuidGetLsbMid = env->GetMethodID(uuidClsL, "getLeastSignificantBits", "()J");
+        if (env->ExceptionCheck())
+            env->ExceptionClear();
+        env->DeleteLocalRef(uuidClsL);
+    }
+    if (env->ExceptionCheck())
+        env->ExceptionClear();
+}
 
 static void cacheLoginStatusBindings(JNIEnv* env, jobject mcLoader) {
     jclass lfp = loadOrFind(env, mcLoader, "net.minecraft.network.protocol.login.ClientboundGameProfilePacket",
@@ -396,10 +525,9 @@ bool cacheJavaRefs(JNIEnv* env, jobject mcLoader) {
         return false;
     if (!cacheChannelBindings(env, mcLoader))
         return false;
-    if (!cachePacketWriter(env, mcLoader))
-        return false;
     cachePlayerBindings(env, mcLoader);
-    cachePacketBindings(env, mcLoader);
+    cacheBufferBindings(env, mcLoader);
+    cachePlayerPacketBindings(env, mcLoader);
     cacheLoginStatusBindings(env, mcLoader);
     cacheBundleBindings(env, mcLoader);
 
@@ -416,9 +544,10 @@ bool cacheJavaRefs(JNIEnv* env, jobject mcLoader) {
     if (env->ExceptionCheck())
         env->ExceptionClear();
 
-    if (!validateRequiredBindings()) return false;
     cacheStatusResponse(env, mcLoader);
-    return true;
+    return server.refs.connectionConfigureSerMid && server.refs.connectionSendMid && server.refs.flowServerbound &&
+           server.refs.channelPipelineMid && server.refs.pipelineAddLastMid && server.refs.channelWriteAndFlushMid &&
+           server.refs.channelAttrMid && server.refs.attributeSetMid;
 }
 
 } // namespace proxy_server

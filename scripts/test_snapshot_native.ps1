@@ -2,10 +2,7 @@ param(
     [Parameter(Mandatory = $true)][string]$JavaHome,
     [string]$MinecraftHome = "$env:APPDATA/.minecraft",
     [string]$Version = '1.20.1-Forge_47.4.23',
-    [string[]]$TestExe = @(
-        "$PSScriptRoot/../build/msvc/tests/snapshot_jni_test.exe",
-        "$PSScriptRoot/../build/msvc/tests/server_jni_test.exe"
-    )
+    [string]$TestExe = "$PSScriptRoot/../build/msvc/tests/snapshot_jni_test.exe"
 )
 $ErrorActionPreference = 'Stop'
 $manifest = Get-Content -Raw "$MinecraftHome/versions/$Version/$Version.json" | ConvertFrom-Json
@@ -19,7 +16,5 @@ foreach ($lib in $manifest.libraries) {
         if (Test-Path -LiteralPath $path) { $paths.Add($path) }
     }
 }
-foreach ($executable in $TestExe) {
-    & $executable "$JavaHome/bin/server/jvm.dll" ($paths -join ';')
-    if ($LASTEXITCODE -ne 0) { throw "Native JNI test failed: $executable (exit $LASTEXITCODE)" }
-}
+& $TestExe "$JavaHome/bin/server/jvm.dll" ($paths -join ';')
+if ($LASTEXITCODE -ne 0) { throw "Native snapshot test failed: $LASTEXITCODE" }

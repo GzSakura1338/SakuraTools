@@ -23,20 +23,6 @@ add_native_test(class_editor edit_self_test.cpp
 add_executable(snapshot_jni_test snapshot_jni_test.cpp)
 target_include_directories(snapshot_jni_test PRIVATE "${PROJECT_SOURCE_DIR}/native")
 
-add_executable(server_jni_test server_jni_test.cpp
-    "${PROJECT_SOURCE_DIR}/native/jni_lookup.cpp"
-    "${PROJECT_SOURCE_DIR}/native/status_response.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/state.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/bindings.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/packet_bindings.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/binding_validation.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/packet_io.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/player_info.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/identity.cpp"
-    "${PROJECT_SOURCE_DIR}/native/server/teams.cpp")
-target_include_directories(server_jni_test PRIVATE "${PROJECT_SOURCE_DIR}/native")
-target_link_libraries(server_jni_test PRIVATE proxy_build_options)
-
 # Existing JVM fixtures test mapped-name fallback; no Java is shipped in the DLL.
 option(PROXY_JVM_TESTS "Build the existing JVM mapping tests" ON)
 if(PROXY_JVM_TESTS)

@@ -24,7 +24,7 @@ std::u16string name(JNIEnv* env, jstring value) {
 bool prepareTeamPacket(JNIEnv* env, jobject packet, jobject& output) {
     output = nullptr;
     if (!server.refs.setPlayerTeamPacketCls || !env->IsInstanceOf(packet, server.refs.setPlayerTeamPacketCls)) {
-        if (server.refs.playLoginPacketCls && env->IsInstanceOf(packet, server.refs.playLoginPacketCls))
+        if (JniClassName(env, packet) == "net.minecraft.network.protocol.game.ClientboundLoginPacket")
             server.teams = TeamState{};
         output = env->NewLocalRef(packet);
         return output != nullptr;
