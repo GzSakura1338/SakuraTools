@@ -216,9 +216,9 @@ function Do-TailLog {
     Write-Host ""
     try {
         if ($FilterPattern) {
-            Get-Content -LiteralPath $LogPath -Tail 20 -Wait | Where-Object { $_ -imatch $FilterPattern }
+            Get-Content -LiteralPath $LogPath -Tail 20 -Wait -Encoding UTF8 | Where-Object { $_ -imatch $FilterPattern }
         } else {
-            Get-Content -LiteralPath $LogPath -Tail 20 -Wait
+            Get-Content -LiteralPath $LogPath -Tail 20 -Wait -Encoding UTF8
         }
     } catch [System.Management.Automation.PipelineStoppedException] {
     }
