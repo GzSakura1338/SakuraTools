@@ -37,7 +37,7 @@ for s in "${CXX_SOURCES[@]}"; do
     OBJS+=("$o")
 done
 
-OUT_DLL="$BIN_DIR/Meadow_bare.dll"
+OUT_DLL="$BIN_DIR/Aurora_bare.dll"
 echo "  LD  $OUT_DLL"
 "$ZIG" c++ -target "$TARGET" -shared \
     -Wl,-e,DllMain \

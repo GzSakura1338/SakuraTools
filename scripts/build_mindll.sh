@@ -13,16 +13,16 @@ mkdir -p "$OUT"
     -shared \
     "$ROOT/mindll/mindll.c" \
     -lkernel32 -luser32 \
-    -o "$OUT/Pebble.dll"
+    -o "$OUT/Tide.dll"
 
 echo "--- built ---"
-ls -lh "$OUT/Pebble.dll"
-file "$OUT/Pebble.dll"
+ls -lh "$OUT/Tide.dll"
+file "$OUT/Tide.dll"
 echo ""
 echo "--- imports / TLS ---"
 python3 -c "
 import pefile
-pe = pefile.PE('$OUT/Pebble.dll')
+pe = pefile.PE('$OUT/Tide.dll')
 for e in pe.DIRECTORY_ENTRY_IMPORT:
     print('  IMP', e.dll.decode())
 print('  TLS:', 'yes' if hasattr(pe, 'DIRECTORY_ENTRY_TLS') else 'no')

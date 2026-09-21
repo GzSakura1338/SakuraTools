@@ -45,7 +45,7 @@ for src in "${CXX_SOURCES[@]}"; do
     OBJS+=("$obj")
 done
 
-OUT_DLL="$BIN_DIR/Meadow.dll"
+OUT_DLL="$BIN_DIR/Aurora.dll"
 echo "LD  $(basename "$OUT_DLL")"
 "$ZIG" c++ -target "$TARGET" -shared \
     -static-libgcc -static-libstdc++ \
@@ -63,7 +63,7 @@ INJECTOR_SOURCES=(
     "$INJECTOR_DIR/LoadLibraryR.c"
     "$INJECTOR_DIR/GetProcAddressR.c"
 )
-INJ_OUT="$BIN_DIR/Canvas.exe"
+INJ_OUT="$BIN_DIR/Compass.exe"
 echo "CC/LD $(basename "$INJ_OUT")"
 "$ZIG" cc -target "$TARGET" -O2 \
     -DWIN_X64 -DWIN32_LEAN_AND_MEAN -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN \

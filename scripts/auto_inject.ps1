@@ -1,6 +1,6 @@
 param(
-    [string]$Dll = (Join-Path $PSScriptRoot '../proxy/Meadow.dll'),
-    [string]$Injector = (Join-Path $PSScriptRoot '../proxy/Canvas.exe'),
+    [string]$Dll = (Join-Path $PSScriptRoot '../proxy/Aurora.dll'),
+    [string]$Injector = (Join-Path $PSScriptRoot '../proxy/Compass.exe'),
     [int]$WaitSeconds = 8
 )
 

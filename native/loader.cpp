@@ -64,7 +64,7 @@ bool stopSession(JNIEnv* env) {
     bool unhooked = UninstallConnectionHook(env);
     bool detached = RelayHandler_DetachAll(env);
     stopped = stopped && unhooked && detached;
-    if (stopped) LogTo("STOP: suspended; run Canvas again to reactivate");
+    if (stopped) LogTo("STOP: suspended; run Compass again to reactivate");
     return stopped;
 }
 

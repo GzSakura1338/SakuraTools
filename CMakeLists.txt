@@ -32,14 +32,14 @@ if(MSVC)
         $<$<CONFIG:Release>:/O2>)
 endif()
 
-# Meadow: resident DLL inside client A.
+# Aurora: resident DLL inside client A.
 add_library(MinecraftProxy_msvc SHARED ${PROXY_SOURCES})
 target_include_directories(MinecraftProxy_msvc PRIVATE native native/include)
 target_link_libraries(MinecraftProxy_msvc PRIVATE
     proxy_build_options psapi ws2_32 kernel32 user32 advapi32)
-set_target_properties(MinecraftProxy_msvc PROPERTIES OUTPUT_NAME Meadow)
+set_target_properties(MinecraftProxy_msvc PROPERTIES OUTPUT_NAME Aurora)
 
-# Canvas and Ribbon share the same injection implementation.
+# Compass and Prism share the same injection implementation.
 set(INJECTION_SOURCES
     injector/Inject.c
     injector/LoadLibraryR.c
@@ -49,12 +49,12 @@ add_executable(reflective_injector injector/cli.c ${INJECTION_SOURCES})
 target_include_directories(reflective_injector PRIVATE injector)
 target_link_libraries(reflective_injector PRIVATE
     proxy_build_options advapi32 iphlpapi kernel32 user32)
-set_target_properties(reflective_injector PROPERTIES OUTPUT_NAME Canvas)
+set_target_properties(reflective_injector PROPERTIES OUTPUT_NAME Compass)
 
 add_library(starain_inject SHARED native/jni_inject.cpp ${INJECTION_SOURCES})
 target_include_directories(starain_inject PRIVATE native/include injector)
 target_link_libraries(starain_inject PRIVATE proxy_build_options kernel32 user32)
-set_target_properties(starain_inject PROPERTIES OUTPUT_NAME Ribbon)
+set_target_properties(starain_inject PROPERTIES OUTPUT_NAME Prism)
 
 set(PROXY_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/proxy")
 foreach(target MinecraftProxy_msvc reflective_injector starain_inject)

@@ -14,22 +14,22 @@
 namespace {
 
 constexpr std::array<const char*, 96> kWords = {
-    "Apricot", "Basket",  "Button",  "Canvas",  "Cedar",   "Cherry",
-    "Clover",  "Cotton",  "Cupboard","Curtain", "Daisy",   "Desk",
-    "Drawer",  "Fabric",  "Fern",    "Folder",  "Garden",  "Gingham",
-    "Handle",  "Hazel",   "Hearth",  "Hem",     "Kettle",  "Label",
-    "Lemon",   "Linen",   "Maple",   "Meadow",  "Mint",    "Mug",
-    "Napkin",  "Notebook","Olive",   "Orchard", "Paper",   "Peach",
-    "Pebble",  "Pencil",  "Petal",   "Pillow",  "Pine",    "Plum",
-    "Pocket",  "Porch",   "Pottery", "Ribbon",  "Saucer",  "Shelf",
-    "Spool",   "Stool",   "Table",   "Teacup",  "Thimble", "Thread",
-    "Thyme",   "Towel",   "Tray",    "Tulip",   "Vase",    "Walnut",
-    "Willow",  "Wool",    "Acorn",   "Album",   "Apron",   "Basin",
-    "Bench",   "Birch",   "Blanket", "Blossom", "Booklet", "Bowl",
-    "Broom",   "Cabinet", "Candle",  "Carpet",  "Chalk",   "Chest",
-    "Coaster", "Comb",    "Cork",    "Cushion", "Doily",   "Envelope",
-    "Felt",    "Flannel", "Hanger",  "Jar",     "Ladle",   "Mat",
-    "Pitcher", "Plate",   "Quilt",   "Ruler",   "Satin",   "Twine",
+    "Aurora",   "Compass",  "Prism",    "Tide",     "Anchor",   "Asteroid",
+    "Atlas",    "Beacon",   "Boreal",   "Breeze",   "Cascade",  "Celestial",
+    "Cirrus",   "Coast",    "Comet",    "Coral",    "Cosmos",   "Cove",
+    "Crescent", "Current",  "Dawn",     "Delta",    "Dolphin",  "Drift",
+    "Dune",     "Dusk",     "Eclipse",  "Equinox",  "Estuary",  "Fjord",
+    "Galaxy",   "Gale",     "Glacier",  "Glimmer",  "Gulf",     "Harbor",
+    "Horizon",  "Iceberg",  "Inlet",    "Island",   "Lagoon",   "Latitude",
+    "Lighthouse", "Lunar",  "Mariner",  "Meridian", "Meteor",   "Mirage",
+    "Monsoon",  "Moonbeam", "Nebula",   "Neptune",  "Nimbus",   "North",
+    "Nova",     "Ocean",    "Orbit",    "Orion",    "Pacific",  "Parallax",
+    "Polaris",  "Pulsar",   "Quasar",   "Reef",     "Ripple",   "Sail",
+    "Sandbar",  "Seabird",  "Seashell", "Seaward",  "Shoal",    "Shore",
+    "Sirius",   "Solar",    "Solstice", "Sonar",    "Spark",    "Spectrum",
+    "Starfish", "Starlight", "Stratus", "Summit",   "Sunbeam",  "Sunrise",
+    "Sunset",   "Surf",     "Swell",    "Tempest",  "Transit",  "Twilight",
+    "Vapor",    "Voyage",   "Wave",     "West",     "Zenith",   "Zephyr",
 };
 
 std::mt19937_64 make_rng() {
